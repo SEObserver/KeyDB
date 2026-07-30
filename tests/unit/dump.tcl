@@ -385,4 +385,28 @@ start_server {tags {"dump"}} {
             assert_match {*WRONGPASS*} $err
         }
     }
+
+    test {RESTORE rejects stream with shared NACK across consumers} {
+        r del mystream
+        r xadd mystream 1-1 f v
+        r xadd mystream 2-1 f v
+        r xgroup create mystream grp 0
+        r xreadgroup group grp consumer1 count 1 streams mystream ">"
+        r xreadgroup group grp consumer2 count 1 streams mystream ">"
+
+        set dump [r dump mystream]
+        r del mystream
+        set id_2_1 "\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x01"
+        set id_1_1 "\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01"
+        set last_pos [string last $id_2_1 $dump]
+        if {$last_pos == -1} {
+            fail "Could not find message ID 2-1 in dump"
+        }
+        set corrupt_dump [string replace $dump $last_pos [expr {$last_pos + 15}] $id_1_1]
+
+        r debug set-skip-checksum-validation 1
+        catch {r restore mystream 0 $corrupt_dump} err
+        r debug set-skip-checksum-validation 0
+        assert_match {*Bad data format*} $err
+    } {} {needs:debug}
 }
