@@ -1,7 +1,8 @@
 # SEObserver KeyDB distribution
 
-This repository is an SEObserver-maintained distribution of KeyDB. It is not
-affiliated with or endorsed by Snap Inc.
+This repository is a downstream distribution prepared by SEObserver for its
+own infrastructure. It is not affiliated with or endorsed by Snap Inc. No
+general support, release cadence, SLA or compatibility commitment is provided.
 
 ## Base and versioning
 
