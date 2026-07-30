@@ -39,6 +39,8 @@
 #include "sds.h"
 #include "sdsalloc.h"
 
+#define SDS_SSIZE_MAX ((ssize_t)(SIZE_MAX >> 1))
+
 const char *SDS_NOINIT = "SDS_NOINIT";
 
 static inline int sdsHdrSize(char type) {
@@ -110,9 +112,9 @@ static inline size_t sdsTypeMaxSize(char type) {
 sds _sdsnewlen(const void *init, ssize_t initlen, int trymalloc) {
     void *sh;
     sds s;
-    if (initlen == -SSIZE_MAX - 1) {
+    if (initlen == -SDS_SSIZE_MAX - 1) {
         if (trymalloc) return NULL;
-        assert(initlen != -SSIZE_MAX - 1);
+        assert(initlen != -SDS_SSIZE_MAX - 1);
     }
     char type = sdsReqType(initlen);
     if (initlen < 0)
@@ -191,7 +193,7 @@ sds sdsnewlen(const void *init, ssize_t initlen) {
 }
 
 sds sdstrynewlen(const void *init, size_t initlen) {
-    if (initlen > (size_t)SSIZE_MAX) return NULL;
+    if (initlen > (size_t)SDS_SSIZE_MAX) return NULL;
     return _sdsnewlen(init, (ssize_t)initlen, 1);
 }
 
