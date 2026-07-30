@@ -408,6 +408,8 @@ void debugCommand(client *c) {
 "CHANGE-REPL-ID"
 "    Change the replication IDs of the instance.",
 "    Dangerous: should be used only for testing the replication subsystem.",
+"CLIENT-ENFORCE-REPLY-LIST <0|1>",
+"    Force synchronous client replies into the reply list (testing only).",
 "CONFIG-REWRITE-FORCE-ALL",
 "    Like CONFIG REWRITE but writes all configuration options, including",
 "    keywords not listed in original configuration file or default values.",
@@ -790,6 +792,12 @@ NULL
                c->argc == 3)
     {
         g_pserver->active_expire_enabled = atoi(szFromObj(c->argv[2]));
+        addReply(c,shared.ok);
+    } else if (!strcasecmp(szFromObj(c->argv[1]),"client-enforce-reply-list") &&
+               c->argc == 3)
+    {
+        g_pserver->debug_client_enforce_reply_list.store(
+            !!atoi(szFromObj(c->argv[2])), std::memory_order_relaxed);
         addReply(c,shared.ok);
     } else if (!strcasecmp(szFromObj(c->argv[1]),"set-skip-checksum-validation") &&
                c->argc == 3)

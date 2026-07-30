@@ -6633,8 +6633,7 @@ void revokeClientAuthentication(client *c) {
      * is eventually freed we don't rely on the module to still exist. */
     moduleNotifyUserChanged(c);
 
-    c->user = DefaultUser;
-    c->authenticated = 0;
+    clientSetUser(c, DefaultUser, 0);
     /* We will write replies to this client later, so we can't close it
      * directly even if async. */
     if (c == serverTL->current_client) {
@@ -6743,8 +6742,7 @@ static int authenticateClientWithUser(RedisModuleCtx *ctx, user *user, RedisModu
 
     moduleNotifyUserChanged(ctx->client);
 
-    ctx->client->user = user;
-    ctx->client->authenticated = 1;
+    clientSetUser(ctx->client, user, 1);
 
     if (callback) {
         ctx->client->auth_callback = callback;

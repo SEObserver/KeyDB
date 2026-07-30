@@ -2358,11 +2358,9 @@ void replicationCreateMasterClient(redisMaster *mi, connection *conn, int dbid) 
      * connection. */
     mi->master->flags |= CLIENT_MASTER;
 
-    mi->master->authenticated = 1;
+    clientSetUser(mi->master, nullptr, 1);
     mi->master->reploff = mi->master_initial_offset;
     mi->master->read_reploff = mi->master->reploff;
-    mi->master->user = NULL; /* This client can do everything. */
-    
     memcpy(mi->master->uuid, mi->master_uuid, UUID_BINARY_LEN);
     memset(mi->master_uuid, 0, UUID_BINARY_LEN); // make sure people don't use this temp storage buffer
 
@@ -2386,11 +2384,10 @@ void replicationCreateCachedMasterClone(redisMaster *mi) {
     client *c = createClient(nullptr, ielFromEventLoop(serverTL->el));
 
     c->flags |= mi->master->flags & ~(CLIENT_PENDING_WRITE | CLIENT_UNBLOCKED | CLIENT_CLOSE_ASAP);
-    c->authenticated = mi->master->authenticated;
+    clientSetUser(c, mi->master->user, mi->master->authenticated);
+    if (mi->master->ever_authenticated) c->ever_authenticated = 1;
     c->reploff = mi->master->reploff;
     c->read_reploff = mi->master->read_reploff;
-    c->user = mi->master->user;
-
     c->replstate = mi->master->replstate;
     c->master_error = mi->master->master_error;
     c->psync_initial_offset = mi->master->psync_initial_offset;
@@ -4441,7 +4438,7 @@ void replicationResurrectCachedMaster(redisMaster *mi, connection *conn) {
     mi->master->conn = conn;
     connSetPrivateData(mi->master->conn, mi->master);
     mi->master->flags &= ~(CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP);
-    mi->master->authenticated = 1;
+    clientSetUser(mi->master, nullptr, 1);
     mi->master->lastinteraction = g_pserver->unixtime;
     mi->repl_state = REPL_STATE_CONNECTED;
     mi->repl_down_since = 0;
@@ -5448,8 +5445,7 @@ void replicaReplayCommand(client *c)
     // OK We've recieved a command lets execute
     client *current_clientSave = serverTL->current_client;
     cFake->lock.lock();
-    cFake->authenticated = c->authenticated;
-    cFake->user = c->user;
+    clientSetUser(cFake, c->user, c->authenticated);
     cFake->querybuf = sdscatsds(cFake->querybuf,(sds)ptrFromObj(c->argv[2]));
     cFake->read_reploff = sdslen(cFake->querybuf);
     cFake->reploff = 0;

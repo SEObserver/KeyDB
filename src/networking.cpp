@@ -107,9 +107,17 @@ void linkClient(client *c) {
 static void clientSetDefaultAuth(client *c) {
     /* If the default user does not require authentication, the user is
      * directly authenticated. */
-    c->user = DefaultUser;
-    c->authenticated = (c->user->flags & USER_FLAG_NOPASS) &&
-                       !(c->user->flags & USER_FLAG_DISABLED);
+    clientSetUser(c, DefaultUser,
+                  (DefaultUser->flags & USER_FLAG_NOPASS) &&
+                  !(DefaultUser->flags & USER_FLAG_DISABLED));
+}
+
+/* Attach a user to a client and update its authentication state.
+ * ever_authenticated is monotonic for the lifetime of the connection. */
+void clientSetUser(client *c, user *u, int authenticated) {
+    c->user = u;
+    c->authenticated = authenticated;
+    if (authenticated) c->ever_authenticated = 1;
 }
 
 int authRequired(client *c) {
@@ -168,6 +176,7 @@ client *createClient(connection *conn, int iel) {
     c->fPendingAsyncWrite = FALSE;
     c->fPendingAsyncWriteHandler = FALSE;
     c->ctime = c->lastinteraction = g_pserver->unixtime;
+    c->ever_authenticated = 0;
     /* If the default user does not require authentication, the user is
      * directly authenticated. */
     clientSetDefaultAuth(c);
@@ -382,6 +391,11 @@ int _addReplyToBuffer(client *c, const char *s, size_t len) {
     else
     {
         size_t available = sizeof(c->buf)-c->bufpos;
+
+        /* Testing hook: force only event-loop-owned replies into the list.
+         * Asynchronous writers stay on the replyAsync path above. */
+        if (g_pserver->debug_client_enforce_reply_list.load(std::memory_order_relaxed))
+            return C_ERR;
 
         /* If there already are entries in the reply list, we cannot
         * add anything more to the static buffer. */
@@ -3854,6 +3868,13 @@ int checkClientOutputBufferLimits(client *c) {
     int soft = 0, hard = 0;
     unsigned long used_mem = getClientOutputBufferMemoryUsage(c);
 
+    /* Bound memory controlled by clients that have never authenticated.
+     * The static reply buffer is part of the client allocation and is not
+     * included in used_mem. */
+    if (used_mem > REPLY_BUFFER_SIZE_UNAUTHENTICATED_CLIENT &&
+        authRequired(c) && !c->ever_authenticated)
+        return 1;
+
     int clientType = getClientType(c);
     /* For the purpose of output buffer limiting, masters are handled
      * like normal clients. */
@@ -3902,7 +3923,9 @@ int checkClientOutputBufferLimits(client *c) {
 int closeClientOnOutputBufferLimitReached(client *c, int async) {
     if (!c->conn) return 0; /* It is unsafe to free fake clients. */
     serverAssert(c->reply_bytes < SIZE_MAX-(1024*64));
-    if (c->reply_bytes == 0 || c->flags & CLIENT_CLOSE_ASAP) return 0;
+    if ((c->reply_bytes == 0 && c->replyAsync == nullptr) ||
+        c->flags & CLIENT_CLOSE_ASAP)
+        return 0;
     if (checkClientOutputBufferLimits(c) && c->replstate != SLAVE_STATE_FASTSYNC_TX) {
         sds client = catClientInfoString(sdsempty(),c);
 
@@ -4092,4 +4115,3 @@ void processEventsWhileBlocked(int iel) {
     if (serverTL->el->stop)
         throw ShutdownException();
 }
-

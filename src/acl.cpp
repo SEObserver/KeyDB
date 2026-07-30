@@ -317,8 +317,7 @@ void ACLFreeUserAndKillClients(user *u) {
              * this may result in some security hole: it's much
              * more defensive to set the default user and put
              * it in non authenticated mode. */
-            c->user = DefaultUser;
-            c->authenticated = 0;
+            clientSetUser(c, DefaultUser, 0);
             /* We will write replies to this client later, so we can't
              * close it directly even if async. */
             if (c == serverTL->current_client) {
@@ -1118,8 +1117,8 @@ int ACLCheckUserCredentials(robj *username, robj *password) {
  * ACLCheckUserCredentials(). */
 int ACLAuthenticateUser(client *c, robj *username, robj *password) {
     if (ACLCheckUserCredentials(username,password) == C_OK) {
-        c->authenticated = 1;
-        c->user = ACLGetUserByName((sds)ptrFromObj(username),sdslen((sds)ptrFromObj(username)));
+        user *user = ACLGetUserByName((sds)ptrFromObj(username),sdslen((sds)ptrFromObj(username)));
+        clientSetUser(c, user, 1);
         moduleNotifyUserChanged(c);
         return C_OK;
     } else {

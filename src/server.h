@@ -404,6 +404,7 @@ inline bool operator!=(const void *p, const robj_sharedptr &rhs)
 #define PROTO_IOBUF_LEN         (1024*16)  /* Generic I/O buffer size */
 #define PROTO_REPLY_CHUNK_BYTES (16*1024) /* 16k output buffer */
 #define PROTO_ASYNC_REPLY_CHUNK_BYTES (1024)
+#define REPLY_BUFFER_SIZE_UNAUTHENTICATED_CLIENT 1024
 #define PROTO_INLINE_MAX_SIZE   (1024*64) /* Max size of inline reads */
 #define PROTO_MBULK_BIG_ARG     (1024*32)
 #define LONG_STR_SIZE      21          /* Bytes needed for long -> str + '\0' */
@@ -1616,6 +1617,7 @@ struct client {
     int fPendingAsyncWrite; /* NOTE: Not a flag because it is written to outside of the client lock (locked by the global lock instead) */
     std::atomic<bool> fPendingAsyncWriteHandler;
     int authenticated;      /* Needed when the default user requires auth. */
+    int ever_authenticated; /* True once this client successfully authenticated. */
     int replstate;          /* Replication state if this is a replica. */
     int repl_put_online_on_ack; /* Install replica write handler on ACK. */
     int repldbfd;           /* Replication DB file descriptor. */
@@ -2347,6 +2349,7 @@ struct redisServer {
     unsigned int loading_process_events_interval_keys;
 
     int active_expire_enabled;      /* Can be disabled for testing purposes. */
+    std::atomic<int> debug_client_enforce_reply_list {0}; /* Testing only. */
 
     int replicaIsolationFactor = 1;
 
@@ -3036,6 +3039,7 @@ void unprotectClient(client *c);
 void ProcessPendingAsyncWrites(void);
 client *lookupClientByID(uint64_t id);
 int authRequired(client *c);
+void clientSetUser(client *c, user *u, int authenticated);
 
 #ifdef __GNUC__
 void addReplyErrorFormat(client *c, const char *fmt, ...)
@@ -4019,5 +4023,3 @@ class ShutdownException
 int iAmMaster(void);
 
 #endif
-
-

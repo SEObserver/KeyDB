@@ -40,6 +40,45 @@ start_server {tags {"auth"} overrides {requirepass foobar}} {
         assert_match {*unauthenticated bulk length*} $e
         $rr close
     }
+
+    test {For never-authenticated clients output buffer is limited} {
+        set rr [redis [srv "host"] [srv "port"] 1 $::tls]
+
+        $rr SET x 5
+        catch {[$rr read]} e
+        assert_match {*NOAUTH Authentication required*} $e
+
+        assert_equal OK [r debug client-enforce-reply-list 1]
+
+        $rr SET x 5
+        catch {[$rr read]} e
+        assert_match {*I/O error reading reply*} $e
+
+        assert_equal OK [r debug client-enforce-reply-list 0]
+        $rr close
+    }
+
+    test {Once-authenticated clients retain normal output limits after RESET} {
+        set rr [redis [srv "host"] [srv "port"] 1 $::tls]
+
+        $rr auth foobar
+        assert_equal OK [$rr read]
+        $rr reset
+        assert_equal RESET [$rr read]
+
+        $rr SET x 5
+        catch {[$rr read]} e
+        assert_match {*NOAUTH Authentication required*} $e
+
+        assert_equal OK [r debug client-enforce-reply-list 1]
+
+        $rr SET x 5
+        catch {[$rr read]} e
+        assert_match {*NOAUTH Authentication required*} $e
+
+        assert_equal OK [r debug client-enforce-reply-list 0]
+        $rr close
+    }
 }
 
 start_server {tags {"auth_binary_password"}} {
