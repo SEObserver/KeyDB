@@ -81,6 +81,7 @@ kept unchanged. They must be judged only on a native AMD64 runner.
 
 Flash/RocksDB support is not part of the qualified SEObserver build.
 macOS is not part of the release qualification gate.
+The optional network MOTD is disabled in qualified builds.
 
 ## Operational notes
 

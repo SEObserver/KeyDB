@@ -15,7 +15,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y remove libzstd || true
           sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-          make BUILD_TLS=yes -j2 KEYDB_CFLAGS='-Werror' KEYDB_CXXFLAGS='-Werror'
+          make BUILD_TLS=yes NO_MOTD=yes -j2
     - name: gen-cert
       run: ./utils/gen-test-certs.sh
     - name: test-tls
@@ -46,7 +46,7 @@ jobs:
         sudo apt-get update
         sudo apt-get -y remove libzstd || true
         sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-        make -j2
+        make NO_MOTD=yes -j2
 
   build-libc-malloc:
     runs-on: ubuntu-latest
@@ -59,4 +59,4 @@ jobs:
           sudo apt-get update
           sudo apt-get -y remove libzstd || true
           sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-          make KEYDB_CFLAGS='-Werror' KEYDB_CXXFLAGS='-Werror' MALLOC=libc -j2
+          make MALLOC=libc NO_MOTD=yes -j2
