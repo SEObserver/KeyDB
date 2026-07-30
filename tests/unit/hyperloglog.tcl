@@ -1,4 +1,17 @@
 start_server {tags {"hll"}} {
+    test {CVE-2025-32023: sparse HLL run-length overflow is rejected} {
+        set hll [binary format cccc 72 89 76 76]
+        append hll [binary format cccc 1 0 0 0]
+        append hll [binary format cccccccc 0 0 0 0 0 0 0 0]
+        append hll [string repeat [binary format ccc 0x7f 0xff 0x3f] 50331648]
+        append hll [binary format c 0x80]
+
+        r set hll_overflow $hll
+        r pfadd hll_merge_source hi
+        assert_error {*INVALIDOBJ*} {r pfmerge fail_target hll_overflow hll_merge_source}
+        assert_error {*INVALIDOBJ*} {r pfadd hll_overflow foo}
+    } {} {large-memory}
+
     test {HyperLogLog self test passes} {
         catch {r pfselftest} e
         set e
