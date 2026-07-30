@@ -93,6 +93,14 @@ start_server {tags {"dump"}} {
         set e
     } {*syntax*}
 
+    test {RESTORE rejects a payload with an overflowing string size} {
+        r debug set-skip-checksum-validation 1
+        set encoded "\x00\x81\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF7\x09\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+        catch {r restore overflow 0 $encoded} err
+        r debug set-skip-checksum-validation 0
+        set err
+    } {*Bad data format*} {needs:debug}
+
     test {DUMP of non existing key returns nil} {
         r dump nonexisting_key
     } {}

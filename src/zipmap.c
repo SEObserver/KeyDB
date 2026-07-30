@@ -405,6 +405,9 @@ int zipmapValidateIntegrity(unsigned char *zm, size_t size, int deep) {
 
         /* read the field name length */
         l = zipmapDecodeLength(p);
+        /* Lengths below ZIPMAP_BIGLEN must use the one-byte encoding. */
+        if (l < ZIPMAP_BIGLEN && s != 1)
+            return 0;
         p += s; /* skip the encoded field size */
         p += l; /* skip the field */
 
@@ -420,6 +423,9 @@ int zipmapValidateIntegrity(unsigned char *zm, size_t size, int deep) {
 
         /* read the value length */
         l = zipmapDecodeLength(p);
+        /* Lengths below ZIPMAP_BIGLEN must use the one-byte encoding. */
+        if (l < ZIPMAP_BIGLEN && s != 1)
+            return 0;
         p += s; /* skip the encoded value size*/
         e = *p++; /* skip the encoded free space (always encoded in one byte) */
         p += l+e; /* skip the value and free space */

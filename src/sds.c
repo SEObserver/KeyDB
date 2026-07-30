@@ -110,6 +110,10 @@ static inline size_t sdsTypeMaxSize(char type) {
 sds _sdsnewlen(const void *init, ssize_t initlen, int trymalloc) {
     void *sh;
     sds s;
+    if (initlen == -SSIZE_MAX - 1) {
+        if (trymalloc) return NULL;
+        assert(initlen != -SSIZE_MAX - 1);
+    }
     char type = sdsReqType(initlen);
     if (initlen < 0)
         initlen = -initlen;
@@ -119,16 +123,17 @@ sds _sdsnewlen(const void *init, ssize_t initlen, int trymalloc) {
     int hdrlen = sdsHdrSize(type);
     unsigned char *fp; /* flags pointer. */
     size_t usable;
+    size_t alloclen = (size_t)initlen + (size_t)hdrlen + 1;
 
-    assert(initlen + hdrlen + 1 > initlen); /* Catch size_t overflow */
+    assert(alloclen > (size_t)initlen); /* Catch size_t overflow */
     sh = trymalloc?
-        s_trymalloc_usable(hdrlen+initlen+1, &usable) :
-        s_malloc_usable(hdrlen+initlen+1, &usable);
+        s_trymalloc_usable(alloclen, &usable) :
+        s_malloc_usable(alloclen, &usable);
     if (sh == NULL) return NULL;
     if (init==SDS_NOINIT)
         init = NULL;
     else if (!init)
-        memset(sh, 0, hdrlen+initlen+1);
+        memset(sh, 0, alloclen);
     s = (char*)sh+hdrlen;
     fp = ((unsigned char*)s)-1;
     usable = usable-hdrlen-1;
@@ -186,7 +191,8 @@ sds sdsnewlen(const void *init, ssize_t initlen) {
 }
 
 sds sdstrynewlen(const void *init, size_t initlen) {
-    return _sdsnewlen(init, initlen, 1);
+    if (initlen > (size_t)SSIZE_MAX) return NULL;
+    return _sdsnewlen(init, (ssize_t)initlen, 1);
 }
 
 /* Create an empty (zero length) sds string. Even in this case the string

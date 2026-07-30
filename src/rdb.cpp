@@ -2166,11 +2166,12 @@ robj *rdbLoadObject(int rdbtype, rio *rdb, sds key, int *error, uint64_t mvcc_ts
 
                         /* search for duplicate records */
                         sds field = sdstrynewlen(fstr, flen);
-                        if (!field || dictAdd(dupSearchDict, field, NULL) != DICT_OK ||
-                            !ziplistSafeToAdd(zl, (size_t)flen + vlen)) {
+                        if (!field || !ziplistSafeToAdd(zl, (size_t)flen + vlen) ||
+                            dictAdd(dupSearchDict, field, NULL) != DICT_OK) {
                             rdbReportCorruptRDB("Hash zipmap with dup elements, or big length (%u)", flen);
                             dictRelease(dupSearchDict);
                             sdsfree(field);
+                            zfree(zl);
                             zfree(encoded);
                             o->m_ptr = NULL;
                             decrRefCount(o);
@@ -2494,7 +2495,6 @@ robj *rdbLoadObject(int rdbtype, rio *rdb, sds key, int *error, uint64_t mvcc_ts
                                                 " loading a stream consumer "
                                                 "group");
                         decrRefCount(o);
-                        streamFreeNACK(nack);
                         return NULL;
                     }
                 }
