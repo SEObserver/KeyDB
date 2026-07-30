@@ -5210,7 +5210,13 @@ void mvccrestoreCommand(client *c) {
 
     /* Create the key and set the TTL if any */
     if (dbMerge(c->db,szFromObj(key),obj,true)) {
-        if (expire >= 0) {
+        /*
+         * RDB loading on an active replica forwards persistent keys with
+         * INVALID_EXPIRE. This value is a sentinel, not an expiration time.
+         * Adding it to the expires dictionary creates a hidden entry even
+         * though TTL and PTTL continue to report the key as persistent.
+         */
+        if (expire >= 0 && expire != INVALID_EXPIRE) {
             setExpire(c,c->db,key,nullptr,expire);
         }
         signalModifiedKey(c,c->db,key);

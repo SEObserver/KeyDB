@@ -60,6 +60,21 @@ start_server {tags {"active-repl"} overrides {active-replica yes}} {
             }
         }
 
+        test {MVCCRESTORE keeps INVALID_EXPIRE keys persistent} {
+            $master set mvccrestore-source 7
+            set payload [$master dump mvccrestore-source]
+            $master del mvccrestore-source
+
+            assert_equal OK [
+                $master keydb.mvccrestore mvccrestore-persistent 100 \
+                    9223372036854775807 $payload
+            ]
+            assert_equal -1 [$master ttl mvccrestore-persistent]
+            assert_equal -1 [$master pttl mvccrestore-persistent]
+            assert_match {*expires=0*} [$master info keyspace]
+            $master del mvccrestore-persistent
+        }
+
         test {Active replicas propogate transaction} {
             $master set testkey 0
             $master multi
