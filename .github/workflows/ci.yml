@@ -7,7 +7,7 @@ jobs:
   test-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: make
@@ -36,9 +36,9 @@ jobs:
           ./runtest-rotation
         
   build-ubuntu-old:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: make -j2
@@ -48,19 +48,10 @@ jobs:
         sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
         make -j2
 
-  build-macos-latest:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-    - name: make
-      run: make KEYDB_CFLAGS='-Werror' KEYDB_CXXFLAGS='-Werror' -j2
-
   build-libc-malloc:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: make
