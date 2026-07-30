@@ -1,6 +1,21 @@
-![Current Release](https://img.shields.io/github/release/JohnSully/KeyDB.svg)
-![CI](https://github.com/JohnSully/KeyDB/workflows/CI/badge.svg?branch=unstable)
+# KeyDB — SEObserver maintained distribution
+
+[![SEObserver release](https://img.shields.io/github/v/tag/SEObserver/KeyDB?filter=v6.3.3-seobserver.*&label=SEObserver%20release)](https://github.com/SEObserver/KeyDB/tags)
+[![CI](https://github.com/SEObserver/KeyDB/actions/workflows/ci.yml/badge.svg?branch=seobserver%2F6.3)](https://github.com/SEObserver/KeyDB/actions/workflows/ci.yml?query=branch%3Aseobserver%2F6.3)
 [![StackShare](http://img.shields.io/badge/tech-stack-0690fa.svg?style=flat)](https://stackshare.io/eq-alpha-technology-inc/eq-alpha-technology-inc)
+
+> This fork is maintained by SEObserver and is not affiliated with or endorsed
+> by Snap Inc. The `seobserver/6.3` line is based on the exact upstream
+> `v6.3.3` tag and adds narrowly scoped active-replication, reliability and
+> security fixes. SEObserver releases use `v6.3.3-seobserver.N` tags.
+>
+> The qualified target is Linux AMD64 with TLS. Flash/RocksDB and macOS are not
+> in the release gate. KeyDB 6.3.4 is deliberately not used because SEObserver
+> previously observed unexplained `SIGILL` exits with that image. See
+> [SEOBSERVER.md](SEOBSERVER.md) for the patch inventory, provenance, test gate
+> and operational limits.
+
+The remainder of this README is the original upstream KeyDB documentation.
 
 ##### KeyDB is now a part of Snap Inc! Check out the announcement [here](https://docs.keydb.dev/news/2022/05/12/keydb-joins-snap) 
 
@@ -329,5 +344,4 @@ source distribution.
 
 Please see the CONTRIBUTING file in this source distribution for more
 information.
-
 
