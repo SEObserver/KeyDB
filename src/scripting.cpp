@@ -1093,6 +1093,19 @@ void luaRemoveUnsupportedFunctions(lua_State *lua) {
     lua_setglobal(lua,"loadfile");
     lua_pushnil(lua);
     lua_setglobal(lua,"dofile");
+    /*
+     * These Lua 5.1 APIs can escape the globals protection by replacing a
+     * function environment or attaching a finalizer to a proxy object.
+     * Redis removed them by default for CVE-2025-46818. KeyDB does not expose
+     * the compatibility switch added by newer Redis releases, so keep the
+     * secure behavior unconditional.
+     */
+    lua_pushnil(lua);
+    lua_setglobal(lua,"getfenv");
+    lua_pushnil(lua);
+    lua_setglobal(lua,"setfenv");
+    lua_pushnil(lua);
+    lua_setglobal(lua,"newproxy");
 }
 
 /* This function installs metamethods in the global table _G that prevent

@@ -3,6 +3,13 @@ start_server {tags {"scripting"}} {
         r eval {return 'hello'} 0
     } {hello}
 
+    foreach deprecated_api {getfenv setfenv newproxy} {
+        test "EVAL - deprecated Lua API $deprecated_api is unavailable" {
+            catch [list r eval "return $deprecated_api()" 0] err
+            set err
+        } "*nonexistent global variable '$deprecated_api'*"
+    }
+
     test {EVAL - Lua integer -> Redis protocol type conversion} {
         r eval {return 100.5} 0
     } {100}
