@@ -456,6 +456,10 @@ start_server {tags {"expire"}} {
         r flushall
         set rd [redis_deferring_client]
         set rd2 [redis_deferring_client]
+        # This is a fire-and-forget stress test. Suppress the roughly 2.3
+        # million replies so a slow TLS runner cannot deadlock on backpressure.
+        $rd client reply off
+        $rd2 client reply off
         $rd2 multi
         for {set j 0} {$j < 1000} {incr j} {
             for {set k 0} {$k < 1000} {incr k} {

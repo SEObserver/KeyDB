@@ -22,6 +22,11 @@ jobs:
       run: |
         sudo apt-get -y install tcl tcl-tls
         ./runtest --clients 1 --verbose --tls --config server-threads 3
+    - name: dump failed test server logs
+      if: failure()
+      run: |
+        find tests/tmp -type f \( -name stdout -o -name stderr \) \
+          -print -exec tail -n 500 {} \; || true
     - name: cluster-test
       run: |
         ./runtest-cluster --tls --config server-threads 3

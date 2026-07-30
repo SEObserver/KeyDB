@@ -3,6 +3,20 @@ start_server {tags {"auth"}} {
         catch {r auth foo} err
         set _ $err
     } {ERR*any password*}
+
+    test {Clients using the nopass default user retain normal output limits} {
+        set rr [redis [srv "host"] [srv "port"] 1 $::tls]
+
+        assert_equal OK [r debug client-enforce-reply-list 1]
+
+        $rr ping
+        assert_equal PONG [$rr read]
+        $rr ping
+        assert_equal PONG [$rr read]
+
+        assert_equal OK [r debug client-enforce-reply-list 0]
+        $rr close
+    }
 }
 
 start_server {tags {"auth"} overrides {requirepass foobar}} {
