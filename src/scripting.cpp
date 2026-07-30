@@ -1343,6 +1343,7 @@ void scriptingRelease(int async) {
     else
         dictRelease(g_pserver->lua_scripts);
     g_pserver->lua_scripts_mem = 0;
+    lua_gc(g_pserver->lua,LUA_GCCOLLECT,0);
     lua_close(g_pserver->lua);
 }
 
