@@ -511,6 +511,22 @@ int anetUnixServer(char *err, char *path, mode_t perm, int backlog)
     return s;
 }
 
+/* Return true for transient accept errors that should be treated like EAGAIN
+ * so another queued connection can still be accepted. */
+int anetRetryAcceptOnError(int err) {
+    if (err == ECONNABORTED)
+        return 1;
+
+#if defined(__linux__)
+    /* Linux can report already-pending network errors from accept(). */
+    if (err == ENETDOWN || err == EPROTO || err == ENOPROTOOPT ||
+        err == EHOSTDOWN || err == ENONET || err == EHOSTUNREACH ||
+        err == EOPNOTSUPP || err == ENETUNREACH)
+        return 1;
+#endif
+    return 0;
+}
+
 static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *len) {
     int fd;
     while(1) {

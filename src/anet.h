@@ -65,6 +65,7 @@ int anetTcp6Server(char *err, int port, const char *bindaddr, int backlog, int f
 int anetUnixServer(char *err, char *path, mode_t perm, int backlog);
 int anetTcpAccept(char *err, int serversock, char *ip, size_t ip_len, int *port);
 int anetUnixAccept(char *err, int serversock);
+int anetRetryAcceptOnError(int err);
 int anetNonBlock(char *err, int fd);
 int anetBlock(char *err, int fd);
 int anetCloexec(int fd);
