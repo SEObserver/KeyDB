@@ -138,6 +138,8 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* `t' is a table? */
       Table *h = hvalue(t);
+      if (h->readonly)
+        luaG_runerror(L, "Attempt to modify a readonly table");
       TValue *oldval = luaH_set(L, h, key); /* do a primitive set */
       if (!ttisnil(oldval) ||  /* result is no nil? */
           (tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL) { /* or no TM? */
@@ -764,4 +766,3 @@ void luaV_execute (lua_State *L, int nexeccalls) {
     }
   }
 }
-

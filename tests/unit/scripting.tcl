@@ -5,10 +5,113 @@ start_server {tags {"scripting"}} {
 
     foreach deprecated_api {getfenv setfenv newproxy} {
         test "EVAL - deprecated Lua API $deprecated_api is unavailable" {
-            catch [list r eval "return $deprecated_api()" 0] err
+            catch [list r eval "return ${deprecated_api}()" 0] err
             set err
         } "*nonexistent global variable '$deprecated_api'*"
     }
+
+    test {EVAL - shared Lua APIs and globals are read-only} {
+        foreach script {
+            {redis.call = function() return 1 end}
+            {cjson.encode = function() return 1 end}
+            {redis = function() return 1 end}
+            {_G = {}}
+            {getmetatable(_G).__index = {}}
+            {rawset(redis, 'call', function() return 1 end)}
+            {rawset(_G, 'injected', true)}
+            {setmetatable(redis, {})}
+            {table.insert(redis, true)}
+        } {
+            catch [list r eval $script 0] err
+            assert_match {*readonly table*} $err
+        }
+    }
+
+    test {EVAL - basic type metatables cannot be modified} {
+        set scripts {
+            {getmetatable(nil).__index = function() return 1 end}
+            {getmetatable('').__index = function() return 1 end}
+            {getmetatable(123.222).__index = function() return 1 end}
+            {getmetatable(true).__index = function() return 1 end}
+            {getmetatable(function() return 1 end).__index = function() return 1 end}
+            {getmetatable(coroutine.create(function() return 1 end)).__index = function() return 1 end}
+        }
+        foreach script $scripts {
+            catch [list r eval $script 0] err
+            assert {
+                [string match {*attempt to index a nil value*} $err] ||
+                [string match {*readonly table*} $err]
+            }
+        }
+    }
+
+    test {EVAL - custom table metatables still work} {
+        r eval {
+            local mt = {answer = 42}
+            local value = {}
+            setmetatable(value, mt)
+            return getmetatable(value).answer
+        } 0
+    } {42}
+
+    test {EVAL - KEYS and ARGV are fresh for each invocation} {
+        r eval {
+            KEYS[1] = 'modified-key'
+            ARGV[1] = 'modified-argument'
+            return {KEYS[1], ARGV[1]}
+        } 1 original-key original-argument
+        r eval {return {KEYS[1], ARGV[1]}} 1 fresh-key fresh-argument
+    } {fresh-key fresh-argument}
+
+    test {EVALSHA - scripts are isolated in the Lua registry} {
+        set sha [r script load {return 42}]
+        catch [list r eval "f_$sha = function() return 99 end" 0] err
+        assert_match {*readonly table*} $err
+        r evalsha $sha 0
+    } {42}
+
+    test {EVALSHA - cached scripts enforce the current caller ACL} {
+        r del lua-acl-key
+        r acl setuser lua-restricted reset on >secret ~* +evalsha
+        set sha [r script load {return redis.call('set','lua-acl-key','value')}]
+        set restricted [redis [srv host] [srv port]]
+        $restricted auth lua-restricted secret
+        catch [list $restricted evalsha $sha 0] err
+        $restricted close
+        r acl deluser lua-restricted
+        assert_match {*user executing the script can't run this command*} $err
+        r exists lua-acl-key
+    } {0}
+
+    test {EVAL - script source cannot execute outside its function} {
+        r del lua-compile-injection
+        catch {
+            r eval {
+                return 1 end
+                redis.call('set','lua-compile-injection','bad')
+                function injected()
+            } 0
+        } err
+        assert_match {*Error compiling script*} $err
+        r exists lua-compile-injection
+    } {0}
+
+    test {EVAL - unpack rejects overflowing ranges} {
+        foreach script {
+            {return {unpack({1,2,3}, -2, 2147483647)}}
+            {return {unpack({1,2,3}, 0, 2147483647)}}
+            {return {unpack({1,2,3}, -2147483648, -2)}}
+        } {
+            catch [list r eval $script 0] err
+            assert_match {*too many results to unpack*} $err
+        }
+    }
+
+    test {EVAL - bit.tohex handles INT32_MIN width} {
+        set result [r eval {return bit.tohex(65535, -2147483648)} 0]
+        assert_equal PONG [r ping]
+        set result
+    } {0000FFFF}
 
     test {EVAL - Lua integer -> Redis protocol type conversion} {
         r eval {return 100.5} 0
@@ -410,7 +513,7 @@ start_server {tags {"scripting"}} {
     test {Globals protection setting an undeclared global*} {
         catch {r eval {a=10} 0} e
         set e
-    } {*ERR*attempted to create global*}
+    } {*ERR*readonly table*}
 
     test {Test an example script DECR_IF_GT} {
         set decr_if_gt {

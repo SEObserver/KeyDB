@@ -1108,6 +1108,57 @@ void luaRemoveUnsupportedFunctions(lua_State *lua) {
     lua_setglobal(lua,"newproxy");
 }
 
+/* Mark a table, every reachable table and their metatables read-only.
+ * The read-only bit also acts as the visited marker for cycles such as _G. */
+static void luaSetTableProtectionRecursively(lua_State *lua) {
+    if (lua_isreadonlytable(lua,-1))
+        return;
+
+    lua_enablereadonlytable(lua,-1,1);
+    lua_checkstack(lua,2);
+    lua_pushnil(lua);
+    while (lua_next(lua,-2)) {
+        if (lua_istable(lua,-1))
+            luaSetTableProtectionRecursively(lua);
+        lua_pop(lua,1);
+    }
+    if (lua_getmetatable(lua,-1)) {
+        luaSetTableProtectionRecursively(lua);
+        lua_pop(lua,1);
+    }
+}
+
+/* Protect metatables attached to basic Lua types. They are shared by every
+ * script but are not reachable while recursively walking the global table. */
+static void luaSetTableProtectionForBasicTypes(lua_State *lua) {
+    static const int types[] = {
+        LUA_TSTRING,
+        LUA_TNUMBER,
+        LUA_TBOOLEAN,
+        LUA_TNIL,
+        LUA_TFUNCTION,
+        LUA_TTHREAD,
+        LUA_TLIGHTUSERDATA
+    };
+
+    for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+        switch (types[i]) {
+            case LUA_TSTRING: lua_pushstring(lua, ""); break;
+            case LUA_TNUMBER: lua_pushnumber(lua, 0); break;
+            case LUA_TBOOLEAN: lua_pushboolean(lua, 0); break;
+            case LUA_TNIL: lua_pushnil(lua); break;
+            case LUA_TFUNCTION: lua_pushcfunction(lua, NULL); break;
+            case LUA_TTHREAD: lua_newthread(lua); break;
+            case LUA_TLIGHTUSERDATA: lua_pushlightuserdata(lua, lua); break;
+        }
+        if (lua_getmetatable(lua, -1)) {
+            luaSetTableProtectionRecursively(lua);
+            lua_pop(lua, 1);
+        }
+        lua_pop(lua, 1);
+    }
+}
+
 /* This function installs metamethods in the global table _G that prevent
  * the creation of globals accidentally.
  *
@@ -1331,6 +1382,10 @@ void scriptingInit(int setup) {
      * subtle bugs in their code. To prevent problems we protect accesses
      * to global variables. */
     scriptingEnableGlobalsProtection(lua);
+    lua_pushvalue(lua,LUA_GLOBALSINDEX);
+    luaSetTableProtectionRecursively(lua);
+    lua_pop(lua,1);
+    luaSetTableProtectionForBasicTypes(lua);
 
     g_pserver->lua = lua;
 }
@@ -1362,7 +1417,9 @@ void luaSetGlobalArray(lua_State *lua, const char *var, robj **elev, int elec) {
         lua_pushlstring(lua,(char*)ptrFromObj(elev[j]),sdslen((sds)ptrFromObj(elev[j])));
         lua_rawseti(lua,-2,j+1);
     }
+    lua_enablereadonlytable(lua,LUA_GLOBALSINDEX,0);
     lua_setglobal(lua,var);
+    lua_enablereadonlytable(lua,LUA_GLOBALSINDEX,1);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1443,14 +1500,8 @@ sds luaCreateFunction(client *c, lua_State *lua, robj *body) {
         return (sds)dictGetKey(de);
     }
 
-    sds funcdef = sdsempty();
-    funcdef = sdscat(funcdef,"function ");
-    funcdef = sdscatlen(funcdef,funcname,42);
-    funcdef = sdscatlen(funcdef,"() ",3);
-    funcdef = sdscatlen(funcdef,ptrFromObj(body),sdslen((sds)ptrFromObj(body)));
-    funcdef = sdscatlen(funcdef,"\nend",4);
-
-    if (luaL_loadbuffer(lua,funcdef,sdslen(funcdef),"@user_script")) {
+    if (luaL_loadbuffer(lua,(char*)ptrFromObj(body),sdslen((sds)ptrFromObj(body)),
+                        "@user_script")) {
         if (c != NULL) {
             addReplyErrorFormat(c,
                 "Error compiling script (new function): %s\n",
@@ -1458,20 +1509,10 @@ sds luaCreateFunction(client *c, lua_State *lua, robj *body) {
         }
         lua_pop(lua,1);
         sdsfree(sha);
-        sdsfree(funcdef);
         return NULL;
     }
-    sdsfree(funcdef);
-
-    if (lua_pcall(lua,0,0,0)) {
-        if (c != NULL) {
-            addReplyErrorFormat(c,"Error running script (new function): %s\n",
-                lua_tostring(lua,-1));
-        }
-        lua_pop(lua,1);
-        sdsfree(sha);
-        return NULL;
-    }
+    serverAssert(lua_isfunction(lua,-1));
+    lua_setfield(lua,LUA_REGISTRYINDEX,funcname);
 
     /* We also save a SHA1 -> Original script map in a dictionary
      * so that we can replicate / write in the AOF all the
@@ -1602,7 +1643,7 @@ void evalGenericCommand(client *c, int evalsha) {
     lua_getglobal(lua, "__redis__err__handler");
 
     /* Try to lookup the Lua function */
-    lua_getglobal(lua, funcname);
+    lua_getfield(lua, LUA_REGISTRYINDEX, funcname);
     if (lua_isnil(lua,-1)) {
         lua_pop(lua,1); /* remove the nil from the stack */
         /* Function not defined... let's define it if we have the
@@ -1620,7 +1661,7 @@ void evalGenericCommand(client *c, int evalsha) {
             return;
         }
         /* Now the following is guaranteed to return non nil */
-        lua_getglobal(lua, funcname);
+        lua_getfield(lua, LUA_REGISTRYINDEX, funcname);
         serverAssert(!lua_isnil(lua,-1));
     }
 
