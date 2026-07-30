@@ -1242,15 +1242,20 @@ int tlsHasPendingData() {
 }
 
 int tlsProcessPendingData() {
-    listIter li;
     listNode *ln;
     serverAssert(!GlobalLocksAcquired());
 
-    int processed = listLength(pending_list);
-    listRewind(pending_list,&li);
-    while((ln = listNext(&li))) {
+    int processed = 0;
+    unsigned long remaining = listLength(pending_list);
+    while (remaining-- > 0 && (ln = listFirst(pending_list)) != NULL) {
         tls_connection *conn = (tls_connection*)listNodeValue(ln);
+        /* A read handler may synchronously free another pending connection.
+         * Remove this node before invoking application code so no iterator
+         * retains a pointer to a node that CLIENT KILL can free. */
+        listDelNode(pending_list,ln);
+        conn->pending_list_node = NULL;
         tlsHandleEvent(conn, AE_READABLE);
+        processed++;
     }
     return processed;
 }
