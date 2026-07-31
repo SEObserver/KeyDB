@@ -73,6 +73,9 @@ wait_for_value() {
 
 [[ $revision =~ ^[0-9a-f]{40}$ ]]
 [[ $(docker image inspect --format '{{.Architecture}}' "$image") == amd64 ]]
+[[ $(docker image inspect --format '{{.Config.User}}' "$image") == 999:999 ]]
+[[ $(docker image inspect --format '{{json .Config.Entrypoint}}' "$image") == \
+    '["/usr/local/bin/docker-entrypoint.sh"]' ]]
 [[ $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image") == "$revision" ]]
 [[ $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image") == "$version" ]]
 docker run --rm --entrypoint keydb-server "$image" --version | grep -F "sha=$short_revision:0"

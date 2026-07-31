@@ -108,7 +108,8 @@ RUN set -eux; \
 VOLUME ["/data"]
 WORKDIR /data
 ENV KEYDB_PRO_DIRECTORY=/usr/local/bin/
-ENTRYPOINT ["docker-entrypoint.sh"]
+USER 999:999
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 EXPOSE 6379
 STOPSIGNAL SIGTERM
 CMD ["keydb-server", "/etc/keydb/keydb.conf"]
