@@ -78,6 +78,7 @@ echo "Running $1: $((last - first + 1)) units (${all_tests[first]} through ${all
 exec ./runtest \
     --clients 1 \
     --verbose \
+    --dump-logs \
     --tls \
     --config server-threads 3 \
     "${test_args[@]}"
