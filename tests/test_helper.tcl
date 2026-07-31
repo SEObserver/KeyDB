@@ -465,7 +465,28 @@ proc kill_clients {} {
     }
 }
 
+proc dump_server_stacks {} {
+    if {![info exists ::env(SEOBSERVER_TEST_GDB)] || $::env(SEOBSERVER_TEST_GDB) ne "1"} {
+        return
+    }
+
+    foreach p $::active_servers {
+        puts "Collecting thread backtraces for still running Redis server $p"
+        if {[catch {
+            exec gdb --batch --nx \
+                -ex "set pagination off" \
+                -ex "thread apply all bt" \
+                -p $p 2>@1
+        } output]} {
+            puts "Unable to collect backtraces for Redis server $p: $output"
+        } else {
+            puts $output
+        }
+    }
+}
+
 proc force_kill_all_servers {} {
+    dump_server_stacks
     foreach p $::active_servers {
         puts "Killing still running Redis server $p"
         catch {exec kill -9 $p}

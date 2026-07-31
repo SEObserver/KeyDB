@@ -74,6 +74,12 @@ for ((index = first; index <= last; index++)); do
     test_args+=(--single "${all_tests[index]}")
 done
 
+# Keep diagnostics for this historically timing-sensitive group and fail fast
+# enough to collect a useful native stack instead of waiting 20 minutes.
+if [[ "$1" == core-late ]]; then
+    test_args+=(--dont-clean --timeout 300)
+fi
+
 # This allocator-layout-sensitive test explicitly expects a fresh process.
 # Keep it in the full partition, but run the individual case in its own CI job.
 if [[ "$1" == core-late ]]; then

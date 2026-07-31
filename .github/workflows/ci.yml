@@ -64,12 +64,14 @@ jobs:
       - name: Build test binary
         run: |
           sudo apt-get update
-          sudo apt-get -y install tcl tcl-tls uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
+          sudo apt-get -y install gdb tcl tcl-tls uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
           make BUILD_TLS=yes ENABLE_FLASH=no NO_MOTD=yes -j2
           ./utils/gen-test-certs.sh
       - name: Verify complete main-suite partition
         run: ./ci/run-main-suite.sh --verify
       - name: Run ${{ matrix.group }}
+        env:
+          SEOBSERVER_TEST_GDB: "1"
         run: ./ci/run-main-suite.sh '${{ matrix.group }}'
       - name: Dump failed test server logs
         if: failure()
