@@ -1916,6 +1916,7 @@ struct MasterSaveInfo {
         masterport = other.masterport;
         memcpy(master_replid, other.master_replid, sizeof(master_replid));
         master_initial_offset = other.master_initial_offset;
+        selected_db = other.selected_db;
     }
 
     MasterSaveInfo &operator=(const MasterSaveInfo &other) {
@@ -1923,6 +1924,7 @@ struct MasterSaveInfo {
         masterport = other.masterport;
         memcpy(master_replid, other.master_replid, sizeof(master_replid));
         master_initial_offset = other.master_initial_offset;
+        selected_db = other.selected_db;
         return *this;
     }
 

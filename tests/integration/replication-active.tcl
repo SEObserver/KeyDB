@@ -299,6 +299,23 @@ start_server {tags {"active-repl"} overrides {active-replica yes}} {
             fail "Replication failed to propogate DB 3"
         }
     }
+
+    test {Active replica RDB retains the master's selected database} {
+        $master select 15
+        $master set rdb-selected-db marker
+        $slave select 15
+        wait_for_condition 50 100 {
+            [$slave get rdb-selected-db] eq "marker"
+        } else {
+            fail "Replication failed to propagate DB 15"
+        }
+
+        assert_equal OK [$slave save]
+        set rdb_dir [lindex [$slave config get dir] 1]
+        set rdb_name [lindex [$slave config get dbfilename] 1]
+        set rdb_info [exec src/keydb-check-rdb [file join $rdb_dir $rdb_name]]
+        assert_match "*AUX FIELD repl-masters*:$master_port:15;*" $rdb_info
+    }
 }
 
 foreach mdl {no yes} {

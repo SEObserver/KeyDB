@@ -25,7 +25,7 @@ The distribution keeps changes small and individually traceable:
 
 | Area | Fixes |
 | --- | --- |
-| Active replication | Ignore the `INVALID_EXPIRE` sentinel in `MVCCRESTORE` |
+| Active replication | Ignore the `INVALID_EXPIRE` sentinel in `MVCCRESTORE`; preserve the selected database in copied RDB master metadata |
 | Lua sandbox | CVE-2022-24735, CVE-2022-24736, CVE-2025-46818 |
 | Lua runtime | CVE-2024-31449, CVE-2024-46981, CVE-2025-46817, CVE-2025-46819, CVE-2025-49844 |
 | Pattern matching | CVE-2022-36021, CVE-2024-31228 |
@@ -34,6 +34,7 @@ The distribution keeps changes small and individually traceable:
 | TLS | CVE-2026-56684 |
 | Authentication | CVE-2025-21605 |
 | Networking | CVE-2023-45145, CVE-2025-48367 |
+| RDB shutdown reliability | Accept a null SDS when copying synthetic master state (KeyDB 6.3.4 backport) |
 | Build portability | Resolve the sorted-set iterator name collision with recent GCC versions (merged KeyDB PR #706) |
 
 The KeyDB-origin fixes come from PRs
@@ -43,6 +44,10 @@ The KeyDB-origin fixes come from PRs
 repaired adaptation of [#918](https://github.com/Snapchat/KeyDB/pull/918).
 The head of PR #918 is not used because it contains a duplicate declaration
 and misses lexer token initialization.
+
+The null-SDS fix is the isolated `src/sds.h` hunk from upstream commit
+[`d7977c468`](https://github.com/Snapchat/KeyDB/commit/d7977c468f9e89b6de58a96d6e064505efecdc92).
+The full Fastsync commit is not included.
 
 [PR #896](https://github.com/Snapchat/KeyDB/pull/896) was evaluated and
 intentionally excluded. Its current unreviewed head can schedule a live master

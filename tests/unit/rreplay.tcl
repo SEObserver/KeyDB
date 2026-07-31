@@ -26,5 +26,10 @@ start_server {tags {"rreplay"} overrides {active-replica yes}} {
         assert_error "*master*" {r rreplay "f4d5b2b5-4f07-4ee5-a4f2-5dc98507dfce" "*3\r\n\$3\r\nSET\r\n\$7\r\ntestkey\r\n\$4\r\nbebe\r\n" 2}
     }
 
+    test {RDB save after RREPLAY master reconnect} {
+        assert_equal OK [r save]
+        assert_equal PONG [r ping]
+    }
+
     r flushdb
 }
