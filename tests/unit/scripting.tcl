@@ -74,7 +74,7 @@ start_server {tags {"scripting"}} {
         r del lua-acl-key
         r acl setuser lua-restricted reset on >secret ~* +evalsha
         set sha [r script load {return redis.call('set','lua-acl-key','value')}]
-        set restricted [redis [srv host] [srv port]]
+        set restricted [redis [srv host] [srv port] 0 $::tls]
         $restricted auth lua-restricted secret
         catch [list $restricted evalsha $sha 0] err
         $restricted close
