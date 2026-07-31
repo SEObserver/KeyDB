@@ -98,10 +98,13 @@ start_server {tags {"repl"}} {
             for {set i 0} { $i < 20 } { incr i } {
                 append bigval $bigval
             }
+            set sync_full [s sync_full]
             r set bigkey $bigval
-            # We expect the replication to be disconnected so wait a bit
+            # The output limit can disconnect and reconnect the replica between
+            # two polling intervals. A new full sync proves the disconnect was
+            # detected without depending on that transient link-down state.
             wait_for_condition 50 100 {
-                [s -1 master_link_status] eq {down}
+                [s sync_full] > $sync_full
             } else {
                 fail "Memory limit exceeded but not detected"
             }

@@ -84,11 +84,13 @@ jobs:
       matrix:
         include:
           - suite: cluster
-            command: ./runtest-cluster --tls --config server-threads 3
+            command: ./runtest-cluster --dont-clean --tls --config server-threads 3
           - suite: sentinel
             command: ./runtest-sentinel
           - suite: module
-            command: ./runtest-moduleapi
+            command: ./runtest-moduleapi --dump-logs
+          - suite: defrag-edge
+            command: ./runtest --clients 1 --single unit/memefficiency --only "Active defrag edge case" --verbose --dump-logs --tls --config server-threads 3
           - suite: rotation
             command: ./runtest-rotation
     steps:
@@ -108,7 +110,7 @@ jobs:
       - name: Dump failed test server logs
         if: failure()
         run: |
-          find tests/tmp -type f \( -name stdout -o -name stderr \) -print -exec tail -n 500 {} \; || true
+          find tests/tmp tests/cluster -type f \( -name stdout -o -name stderr -o -name log.txt \) -print -exec tail -n 500 {} \; || true
 
   container:
     runs-on: ubuntu-22.04

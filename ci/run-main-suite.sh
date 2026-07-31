@@ -74,6 +74,12 @@ for ((index = first; index <= last; index++)); do
     test_args+=(--single "${all_tests[index]}")
 done
 
+# This allocator-layout-sensitive test explicitly expects a fresh process.
+# Keep it in the full partition, but run the individual case in its own CI job.
+if [[ "$1" == core-late ]]; then
+    test_args+=(--skiptest "Active defrag edge case")
+fi
+
 echo "Running $1: $((last - first + 1)) units (${all_tests[first]} through ${all_tests[last]})"
 exec ./runtest \
     --clients 1 \

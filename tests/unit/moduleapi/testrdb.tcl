@@ -89,7 +89,7 @@ tags "modules" {
                     for {set i 0} {$i < $attempts} {incr i} {
                         # wait for the replica to start reading the rdb
                         # using the log file since the replica only responds to INFO once in 2mb
-                        set res [wait_for_log_messages -1 {"*Loading DB in memory*"} $loglines 2000 1]
+                        set res [wait_for_log_messages -1 {"*Loading DB in memory*"} $loglines 500 10]
                         set loglines [lindex $res 1]
 
                         # add some additional random sleep so that we kill the master on a different place each time
