@@ -98,6 +98,12 @@ isolated test fix from
 deferred TLS client from blocking while its unread server replies fill the
 connection buffers.
 
+The replica-buffer memory-accounting test uses the same bounded-pipeline
+principle for its one million writes, draining every response in batches of
+10,000. This is the focused `maxmemory.tcl` fix from
+[Redis PR #14667](https://github.com/redis/redis/pull/14667); command count,
+payload, memory accounting and assertions remain unchanged.
+
 Three malformed-RDB tests intentionally request allocations near `SIZE_MAX`.
 Under AMD64 Rosetta, the emulator terminates the process with `SIGTRAP` instead
 of returning `ENOMEM`; the same tests pass under native Linux ARM64 and are

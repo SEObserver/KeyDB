@@ -200,11 +200,18 @@ proc test_slave_buffers {test_name cmd_count payload_len limit_memory pipeline} 
             # send some 10mb worth of commands that don't increase the memory usage
             if {$pipeline == 1} {
                 set rd_master [redis_deferring_client -1]
+                set batch_size 10000
                 for {set k 0} {$k < $cmd_count} {incr k} {
                     $rd_master setrange key:0 0 [string repeat A $payload_len]
+                    if {($k + 1) % $batch_size == 0} {
+                        for {set j 0} {$j < $batch_size} {incr j} {
+                            $rd_master read
+                        }
+                    }
                 }
-                for {set k 0} {$k < $cmd_count} {incr k} {
-                    #$rd_master read
+                set remaining [expr {$cmd_count % $batch_size}]
+                for {set k 0} {$k < $remaining} {incr k} {
+                    $rd_master read
                 }
             } else {
                 for {set k 0} {$k < $cmd_count} {incr k} {
