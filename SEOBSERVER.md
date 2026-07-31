@@ -35,6 +35,7 @@ The distribution keeps changes small and individually traceable:
 | Authentication | CVE-2025-21605 |
 | Networking | CVE-2023-45145, CVE-2025-48367 |
 | RDB shutdown reliability | Accept a null SDS when copying synthetic master state (KeyDB 6.3.4 backport) |
+| Fork safety | Disable inherited multi-thread lock internals in RDB/AOF children (KeyDB PR #205) |
 | Build portability | Resolve the sorted-set iterator name collision with recent GCC versions (merged KeyDB PR #706) |
 | Active defragmentation | Prevent jemalloc 5.2 from stagnating on equally utilized non-full slabs (Redis PR #9778) |
 
@@ -49,6 +50,11 @@ and misses lexer token initialization.
 The null-SDS fix is the isolated `src/sds.h` hunk from upstream commit
 [`d7977c468`](https://github.com/Snapchat/KeyDB/commit/d7977c468f9e89b6de58a96d6e064505efecdc92).
 The full Fastsync commit is not included.
+
+The fork-safety fix is upstream commit
+[`596c513d3`](https://github.com/Snapchat/KeyDB/commit/596c513d3e9a4a252bfd67e9074ca75f4d7a64f8)
+from KeyDB PR #205. It prevents a forked child from taking internal locks whose
+owning threads do not exist in the child process.
 
 The active-defragmentation fix adapts Redis commit
 [`d4e7ffb38`](https://github.com/redis/redis/commit/d4e7ffb38c51d002577719ba761604b8219f617d)
