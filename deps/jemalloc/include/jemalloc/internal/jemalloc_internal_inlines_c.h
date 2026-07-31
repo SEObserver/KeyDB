@@ -241,18 +241,26 @@ iget_defrag_hint(tsdn_t *tsdn, void* ptr) {
 			int free_in_slab = extent_nfree_get(slab);
 			if (free_in_slab) {
 				const bin_info_t *bin_info = &bin_infos[binind];
-				ssize_t curslabs = binshard->stats.curslabs;
-				size_t curregs = binshard->stats.curregs;
-				if (binshard->slabcur) {
-					/* remove slabcur from the overall utilization */
-					curregs -= bin_info->nregs - extent_nfree_get(binshard->slabcur);
-					curslabs -= 1;
+				/* Find the number of non-full slabs and the regs in them. */
+				unsigned long curslabs = 0;
+				size_t curregs = 0;
+				/* Run on all bin shards (usually just one). */
+				for (uint32_t i = 0; i < bin_info->n_shards; i++) {
+					bin_t *bb = &bin->bin_shards[i];
+					curslabs += bb->stats.nonfull_slabs;
+					/* Full slabs are neither source nor target candidates. */
+					unsigned long full_slabs = bb->stats.curslabs - bb->stats.nonfull_slabs;
+					curregs += bb->stats.curregs - full_slabs * bin_info->nregs;
+					if (bb->slabcur) {
+						/* slabcur is not a candidate to move from. */
+						curregs -= bin_info->nregs - extent_nfree_get(bb->slabcur);
+						curslabs -= 1;
+					}
 				}
-				/* Compare the utilization ratio of the slab in question to the total average,
-				 * to avoid precision lost and division, we do that by extrapolating the usage
-				 * of the slab as if all slabs have the same usage. If this slab is less used 
-				 * than the average, we'll prefer to evict the data to hopefully more used ones */
-				defrag = (bin_info->nregs - free_in_slab) * curslabs <= curregs;
+				/* Compare the slab utilization to the average among non-full
+				 * slabs. The extra 12.5% avoids stagnation when all slabs have
+				 * the same utilization. */
+				defrag = (bin_info->nregs - free_in_slab) * curslabs <= curregs + curregs / 8;
 			}
 		}
 		malloc_mutex_unlock(tsdn, &binshard->lock);

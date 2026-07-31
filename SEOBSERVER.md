@@ -36,6 +36,7 @@ The distribution keeps changes small and individually traceable:
 | Networking | CVE-2023-45145, CVE-2025-48367 |
 | RDB shutdown reliability | Accept a null SDS when copying synthetic master state (KeyDB 6.3.4 backport) |
 | Build portability | Resolve the sorted-set iterator name collision with recent GCC versions (merged KeyDB PR #706) |
+| Active defragmentation | Prevent jemalloc 5.2 from stagnating on equally utilized non-full slabs (Redis PR #9778) |
 
 The KeyDB-origin fixes come from PRs
 [#706](https://github.com/Snapchat/KeyDB/pull/706),
@@ -48,6 +49,12 @@ and misses lexer token initialization.
 The null-SDS fix is the isolated `src/sds.h` hunk from upstream commit
 [`d7977c468`](https://github.com/Snapchat/KeyDB/commit/d7977c468f9e89b6de58a96d6e064505efecdc92).
 The full Fastsync commit is not included.
+
+The active-defragmentation fix adapts Redis commit
+[`d4e7ffb38`](https://github.com/redis/redis/commit/d4e7ffb38c51d002577719ba761604b8219f617d)
+to KeyDB's vendored jemalloc 5.2.1. It compares candidate utilization only
+against non-full slabs across bin shards and retains Redis's 12.5% anti-stagnation
+margin.
 
 [PR #896](https://github.com/Snapchat/KeyDB/pull/896) was evaluated and
 intentionally excluded. Its current unreviewed head can schedule a live master
