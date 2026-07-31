@@ -58,11 +58,11 @@ test "Cluster Join and auto-discovery test" {
 
     foreach_redis_id id {
         set meet_retry 0
-        wait_for_condition 1000 50 {
-            # A MEET sent immediately after a hard reset can race with stale
-            # cluster-bus teardown. Retry only the same neighbour chain; full
-            # mesh discovery must still happen through cluster gossip.
-            if {[incr meet_retry] % 20 == 0} {
+        while {[llength [get_cluster_nodes $id]] != [llength $ids]} {
+            if {[incr meet_retry] > 1000} {
+                fail "Cluster failed to join into a full mesh."
+            }
+            if {$meet_retry % 20 == 0} {
                 for {set j 0} {$j < [expr [llength $ids]-1]} {incr j} {
                     set a [lindex $ids $j]
                     set b [lindex $ids [expr $j+1]]
@@ -70,9 +70,7 @@ test "Cluster Join and auto-discovery test" {
                     catch {R $a cluster meet 127.0.0.1 $b_port}
                 }
             }
-            [llength [get_cluster_nodes $id]] == [llength $ids]
-        } else {
-            fail "Cluster failed to join into a full mesh."
+            after 50
         }
     }
 }
