@@ -34,8 +34,10 @@ The distribution keeps changes small and individually traceable:
 | TLS | CVE-2026-56684 |
 | Authentication | CVE-2025-21605 |
 | Networking | CVE-2023-45145, CVE-2025-48367 |
+| Build portability | Resolve the sorted-set iterator name collision with recent GCC versions (merged KeyDB PR #706) |
 
 The KeyDB-origin fixes come from PRs
+[#706](https://github.com/Snapchat/KeyDB/pull/706),
 [#906](https://github.com/Snapchat/KeyDB/pull/906),
 [#908](https://github.com/Snapchat/KeyDB/pull/908) and an independently
 repaired adaptation of [#918](https://github.com/Snapchat/KeyDB/pull/918).
@@ -79,6 +81,10 @@ The upstream main, cluster, Sentinel, module and TLS suites must pass on a
 native Linux AMD64 runner before a release tag is created. Docker Desktop on
 Apple Silicon is useful for compilation and ordinary behavior tests, but is
 not an acceptable substitute for this gate.
+
+The high-volume subkey-expiry test keeps its original writes and assertion but
+suppresses replies that it never consumes, avoiding TLS output backpressure on
+slow runners. Failed-run server logs are dumped by CI.
 
 Three malformed-RDB tests intentionally request allocations near `SIZE_MAX`.
 Under AMD64 Rosetta, the emulator terminates the process with `SIGTRAP` instead
