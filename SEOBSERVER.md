@@ -6,7 +6,7 @@ general support, release cadence, SLA or compatibility commitment is provided.
 
 ## Base and versioning
 
-The maintenance branch `seobserver/6.3` starts from the exact upstream tag
+The downstream branch `seobserver/6.3` starts from the exact upstream tag
 `v6.3.3` (`3909d51337c90f1068a180a031b3b217ff5d28b6`). SEObserver releases use
 annotated tags named `v6.3.3-seobserver.N`. `KEYDB_REAL_VERSION` remains
 `6.3.3` to preserve protocol, RDB and replication compatibility.
@@ -25,7 +25,7 @@ The distribution keeps changes small and individually traceable:
 
 | Area | Fixes |
 | --- | --- |
-| Active replication | Ignore the `INVALID_EXPIRE` sentinel in `MVCCRESTORE`; repair cached-master reconnect handling from KeyDB PR #896 |
+| Active replication | Ignore the `INVALID_EXPIRE` sentinel in `MVCCRESTORE` |
 | Lua sandbox | CVE-2022-24735, CVE-2022-24736, CVE-2025-46818 |
 | Lua runtime | CVE-2024-31449, CVE-2024-46981, CVE-2025-46817, CVE-2025-46819, CVE-2025-49844 |
 | Pattern matching | CVE-2022-36021, CVE-2024-31228 |
@@ -36,12 +36,17 @@ The distribution keeps changes small and individually traceable:
 | Networking | CVE-2023-45145, CVE-2025-48367 |
 
 The KeyDB-origin fixes come from PRs
-[#896](https://github.com/Snapchat/KeyDB/pull/896),
 [#906](https://github.com/Snapchat/KeyDB/pull/906),
 [#908](https://github.com/Snapchat/KeyDB/pull/908) and an independently
 repaired adaptation of [#918](https://github.com/Snapchat/KeyDB/pull/918).
 The head of PR #918 is not used because it contains a duplicate declaration
 and misses lexer token initialization.
+
+[PR #896](https://github.com/Snapchat/KeyDB/pull/896) was evaluated and
+intentionally excluded. Its current unreviewed head can schedule a live master
+client for asynchronous freeing during an RDB restart; the Linux AMD64 TLS
+PSYNC2 differential reproduced corrupted replication state followed by a
+`SIGSEGV`.
 
 Security backports taken from Valkey retain their upstream commit identifiers
 in the Git commit messages. The principal sources are:

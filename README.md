@@ -18,6 +18,9 @@
 > and operational limits.
 
 The remainder of this README is the original upstream KeyDB documentation.
+Its statements about roadmap, support and project activity are historical and
+do not describe commitments by SEObserver or necessarily the current status of
+the upstream project.
 
 ##### KeyDB is now a part of Snap Inc! Check out the announcement [here](https://docs.keydb.dev/news/2022/05/12/keydb-joins-snap) 
 
@@ -51,10 +54,13 @@ KeyDB has a different philosophy on how the codebase should evolve.  We feel tha
 
 Because of this difference of opinion features which are right for KeyDB may not be appropriate for Redis.  A fork allows us to explore this new development path and implement features which may never be a part of Redis.  KeyDB keeps in sync with upstream Redis changes, and where applicable we upstream bug fixes and changes. It is our hope that the two projects can continue to grow and learn from each other.
 
-Project Support
--------------------
+Historical upstream support statement
+-------------------------------------
 
-The KeyDB team maintains this project as part of Snap Inc. KeyDB is used by Snap as part of its caching infrastructure and is fully open sourced. There is no separate commercial product and no paid support options available. We really value collaborating with the open source community and welcome PRs, bug reports, and open discussion. For community support or to get involved further with the project check out our community support options [here](https://docs.keydb.dev/docs/support) (slack, forum, meetup, github issues). Our team monitors these channels regularly.
+The upstream `v6.3.3` README described KeyDB as a Snap Inc. project and linked
+to its community channels. That statement is retained here only as historical
+context; it is not a current support claim and creates no support commitment
+from SEObserver.
 
 
 Additional Resources
