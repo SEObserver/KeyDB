@@ -17,6 +17,12 @@
 > [SEOBSERVER.md](SEOBSERVER.md) for the patch inventory, provenance, test gate
 > and operational limits.
 
+Qualified container releases are private Linux AMD64 images named
+`ghcr.io/seobserver/keydb:v6.3.3-seobserver.N`. They are built from this exact
+checkout by the versioned [SEObserver Docker recipe](pkg/docker/README.md), and
+published only after the complete native CI gate and container smoke tests
+pass. Publishing an image does not authorize a production deployment.
+
 The remainder of this README is the original upstream KeyDB documentation.
 Its statements about roadmap, support and project activity are historical and
 do not describe commitments by SEObserver or necessarily the current status of

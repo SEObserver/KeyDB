@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.vscode
+core
+*.log
+*.rdb
+*.aof
+tests/tmp/*
+!tests/tmp/.gitignore

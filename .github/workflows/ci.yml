@@ -2,66 +2,204 @@ name: CI
 
 on: [push, pull_request]
 
-jobs:
+permissions:
+  contents: read
 
-  test-ubuntu-latest:
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  IMAGE_NAME: ghcr.io/seobserver/keydb
+
+jobs:
+  build-ubuntu-latest:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: make
-      run: |
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+      - name: Assert native AMD64 runner
+        run: test "$(uname -m)" = x86_64
+      - name: Build jemalloc and TLS
+        run: |
           sudo apt-get update
-          sudo apt-get -y remove libzstd || true
           sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-          make BUILD_TLS=yes NO_MOTD=yes -j2
-    - name: gen-cert
-      run: ./utils/gen-test-certs.sh
-    - name: test-tls
-      run: |
-        sudo apt-get -y install tcl tcl-tls
-        ./runtest --clients 1 --verbose --tls --config server-threads 3
-    - name: dump failed test server logs
-      if: failure()
-      run: |
-        find tests/tmp -type f \( -name stdout -o -name stderr \) \
-          -print -exec tail -n 500 {} \; || true
-    - name: cluster-test
-      run: |
-        ./runtest-cluster --tls --config server-threads 3
-    - name: sentinel test
-      run: |
-          ./runtest-sentinel
-    - name: module tests
-      run: |
-          ./runtest-moduleapi
-    - name: rotation test
-      run: |
-          ./runtest-rotation
-        
-  build-ubuntu-old:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: make -j2
-      run: | 
-        sudo apt-get update
-        sudo apt-get -y remove libzstd || true
-        sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-        make NO_MOTD=yes -j2
+          make BUILD_TLS=yes ENABLE_FLASH=no NO_MOTD=yes -j2
 
   build-libc-malloc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: make
-      run: |
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+      - name: Assert native AMD64 runner
+        run: test "$(uname -m)" = x86_64
+      - name: Build libc malloc and TLS
+        run: |
           sudo apt-get update
-          sudo apt-get -y remove libzstd || true
           sudo apt-get -y install uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
-          make MALLOC=libc NO_MOTD=yes -j2
+          make MALLOC=libc BUILD_TLS=yes ENABLE_FLASH=no NO_MOTD=yes -j2
+
+  test-main:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - core-early
+          - replication
+          - persistence-tools
+          - psync-multimaster
+          - core-late
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+      - name: Assert native AMD64 runner
+        run: test "$(uname -m)" = x86_64
+      - name: Build test binary
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install tcl tcl-tls uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
+          make BUILD_TLS=yes ENABLE_FLASH=no NO_MOTD=yes -j2
+          ./utils/gen-test-certs.sh
+      - name: Verify complete main-suite partition
+        run: ./ci/run-main-suite.sh --verify
+      - name: Run ${{ matrix.group }}
+        run: ./ci/run-main-suite.sh '${{ matrix.group }}'
+      - name: Dump failed test server logs
+        if: failure()
+        run: |
+          find tests/tmp -type f \( -name stdout -o -name stderr \) -print -exec tail -n 500 {} \; || true
+
+  test-auxiliary:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: cluster
+            command: ./runtest-cluster --tls --config server-threads 3
+          - suite: sentinel
+            command: ./runtest-sentinel
+          - suite: module
+            command: ./runtest-moduleapi
+          - suite: rotation
+            command: ./runtest-rotation
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+      - name: Assert native AMD64 runner
+        run: test "$(uname -m)" = x86_64
+      - name: Build test binary
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install tcl tcl-tls uuid-dev libcurl4-openssl-dev libbz2-dev zlib1g-dev libsnappy-dev liblz4-dev libzstd-dev libgflags-dev
+          make BUILD_TLS=yes ENABLE_FLASH=no NO_MOTD=yes -j2
+          ./utils/gen-test-certs.sh
+      - name: Run ${{ matrix.suite }} suite
+        run: ${{ matrix.command }}
+      - name: Dump failed test server logs
+        if: failure()
+        run: |
+          find tests/tmp -type f \( -name stdout -o -name stderr \) -print -exec tail -n 500 {} \; || true
+
+  container:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+      - name: Assert native AMD64 runner
+        run: test "$(uname -m)" = x86_64
+      - name: Set image metadata
+        id: metadata
+        shell: bash
+        run: |
+          revision=$(git rev-parse HEAD)
+          source_date_epoch=$(git show -s --format=%ct HEAD)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version=$GITHUB_REF_NAME
+          else
+            version=ci-$revision
+          fi
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "source_date_epoch=$source_date_epoch" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE_NAME:$version" >> "$GITHUB_OUTPUT"
+      - name: Build exact source image
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            --file pkg/docker/seobserver/Dockerfile \
+            --build-arg IMAGE_VERSION='${{ steps.metadata.outputs.version }}' \
+            --build-arg SOURCE_REVISION='${{ steps.metadata.outputs.revision }}' \
+            --build-arg SOURCE_DATE_EPOCH='${{ steps.metadata.outputs.source_date_epoch }}' \
+            --tag '${{ steps.metadata.outputs.image }}' \
+            .
+      - name: Smoke-test packaged runtime
+        run: |
+          ./pkg/docker/seobserver/smoke-test.sh \
+            '${{ steps.metadata.outputs.image }}' \
+            '${{ steps.metadata.outputs.revision }}' \
+            '${{ steps.metadata.outputs.version }}'
+      - name: Export exact tested image
+        if: startsWith(github.ref, 'refs/tags/v6.3.3-seobserver.')
+        run: docker save '${{ steps.metadata.outputs.image }}' | gzip -1 > /tmp/keydb-image.tar.gz
+      - name: Upload exact tested image
+        if: startsWith(github.ref, 'refs/tags/v6.3.3-seobserver.')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: keydb-release-image
+          path: /tmp/keydb-image.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v6.3.3-seobserver.')
+    needs:
+      - build-ubuntu-latest
+      - build-libc-malloc
+      - test-main
+      - test-auxiliary
+      - container
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: keydb-release-image
+          path: /tmp
+      - name: Validate immutable tag
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v6\.3\.3-seobserver\.[0-9]+$ ]]
+          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if docker manifest inspect "$IMAGE_NAME:$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing image tag $IMAGE_NAME:$GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish exact tested image
+        run: |
+          gunzip --stdout /tmp/keydb-image.tar.gz | docker load
+          docker push "$IMAGE_NAME:$GITHUB_REF_NAME"
+          docker buildx imagetools inspect "$IMAGE_NAME:$GITHUB_REF_NAME"
+      - name: Verify private package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          visibility=$(gh api "/users/$GITHUB_REPOSITORY_OWNER/packages/container/keydb" --jq .visibility)
+          test "$visibility" = private
