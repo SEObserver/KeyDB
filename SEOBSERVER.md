@@ -91,6 +91,13 @@ The high-volume subkey-expiry test keeps its original writes and assertion but
 suppresses replies that it never consumes, avoiding TLS output backpressure on
 slow runners. Failed-run server logs are dumped by CI.
 
+The memory-efficiency test likewise keeps all 10,000 writes, reads every reply
+and preserves its thresholds, but drains replies in batches of 500. This is the
+isolated test fix from
+[Redis PR #14946](https://github.com/redis/redis/pull/14946) and prevents a
+deferred TLS client from blocking while its unread server replies fill the
+connection buffers.
+
 Three malformed-RDB tests intentionally request allocations near `SIZE_MAX`.
 Under AMD64 Rosetta, the emulator terminates the process with `SIGTRAP` instead
 of returning `ENOMEM`; the same tests pass under native Linux ARM64 and are
