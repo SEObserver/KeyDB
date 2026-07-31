@@ -82,10 +82,30 @@ compiled. The focused suite covers:
 - authentication and output-buffer limits;
 - TCP, TLS, Unix-socket and cluster accept paths.
 
-The upstream main, cluster, Sentinel, module and TLS suites must pass on a
-native Linux AMD64 runner before a release tag is created. Docker Desktop on
-Apple Silicon is useful for compilation and ordinary behavior tests, but is
-not an acceptable substitute for this gate.
+The normal release gate requires the upstream main, cluster, Sentinel, module
+and TLS suites to pass on a native Linux AMD64 runner. Docker Desktop on Apple
+Silicon is useful for compilation and ordinary behavior tests, but is not an
+acceptable substitute for this gate.
+
+### `v6.3.3-seobserver.1` qualification exception
+
+SEObserver explicitly accepted a source-tag exception on 31 July 2026 for
+intermittent failures in the historical upstream TLS test harness:
+
+- both jemalloc and libc builds pass on native Linux AMD64;
+- the focused active-replication, RDB, security and TLS regressions pass;
+- one full run completed all 78 test units but missed the initial multi-master
+  link-status deadline by 502 ms; the immediately following replication,
+  transaction, quorum, digest, MVCC and RDB checks all passed;
+- an exact run on the final product code completed the suite with two
+  intermittent full-sync timeouts in `replication-psync-multimaster`, without a
+  crash or data-integrity mismatch.
+
+Because the monolithic TLS step returns non-zero after recording any earlier
+failure, its downstream cluster, Sentinel, module and rotation steps were not
+executed on the final SHA. This known qualification gap is accepted only for
+publishing the source tag. It is not production approval; production promotion
+and failover validation remain separate decisions.
 
 The high-volume subkey-expiry test keeps its original writes and assertion but
 suppresses replies that it never consumes, avoiding TLS output backpressure on
